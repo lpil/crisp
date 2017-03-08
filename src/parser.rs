@@ -14,7 +14,7 @@ pub fn parse_atom(chars: &mut iter::Peekable<str::Chars>) -> Result<Node, String
         return Err("Invalid atom".to_string());
     }
     while let Some(&c) = chars.peek() {
-        if !c.is_whitespace() && !c.is_control() {
+        if !c.is_whitespace() && !c.is_control() && c != '(' && c != ')' {
             buffer.push(c);
             chars.next();
         } else {
@@ -27,8 +27,8 @@ pub fn parse_atom(chars: &mut iter::Peekable<str::Chars>) -> Result<Node, String
 fn valid_atom_start_char(chars: &mut iter::Peekable<str::Chars>) -> bool {
     match chars.peek() {
         None => false,
-        Some(&'[') | Some(&']') | Some(&'{') | Some(&'}') | Some(&'"') | Some(&'\'') |
-        Some(&'`') => false,
+        Some(&'(') | Some(&')') | Some(&'[') | Some(&']') | Some(&'{') | Some(&'}') |
+        Some(&'"') | Some(&'\'') | Some(&'`') => false,
         Some(c) => !(c.is_whitespace() || c.is_control() || c.is_digit(10)),
     }
 }
@@ -73,6 +73,10 @@ fn parse_elems(mut chars: &mut iter::Peekable<str::Chars>) -> Vec<Node> {
     let mut elems = vec![];
     loop {
         chomp(&mut chars);
+        if let Ok(atom) = parse_atom(&mut chars) {
+            elems.push(atom);
+            continue;
+        }
         if let Ok(num) = parse_number(&mut chars) {
             elems.push(num);
             continue;
@@ -109,9 +113,9 @@ mod tests {
 
     #[test]
     fn parse_test() {
-        let input = "(1 2 3)".to_string();
+        let input = "(+ 1 2)".to_string();
         let res = parse(&input);
-        let nums = vec![Node::Float(1), Node::Float(2), Node::Float(3)];
+        let nums = vec![Node::Atom("+".to_string()), Node::Float(1), Node::Float(2)];
         let sexpr = Node::List(nums);
         assert_eq!(res, Ok(sexpr));
     }
@@ -261,6 +265,8 @@ mod tests {
         assert!(parse_atom(&mut "7".chars().peekable()).is_err());
         assert!(parse_atom(&mut "8".chars().peekable()).is_err());
         assert!(parse_atom(&mut "9".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "(".chars().peekable()).is_err());
+        assert!(parse_atom(&mut ")".chars().peekable()).is_err());
         assert!(parse_atom(&mut "[".chars().peekable()).is_err());
         assert!(parse_atom(&mut "]".chars().peekable()).is_err());
         assert!(parse_atom(&mut "{".chars().peekable()).is_err());
