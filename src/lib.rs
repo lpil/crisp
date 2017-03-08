@@ -4,4 +4,5 @@ pub mod parser;
 pub enum Node {
     List(Vec<Node>),
     Float(i32),
+    Atom(String),
 }

@@ -8,6 +8,31 @@ pub fn parse(input: &String) -> Result<Node, String> {
     parse_list(&mut chars)
 }
 
+pub fn parse_atom(chars: &mut iter::Peekable<str::Chars>) -> Result<Node, String> {
+    let mut buffer = String::new();
+    if !valid_atom_start_char(chars) {
+        return Err("Invalid atom".to_string());
+    }
+    while let Some(&c) = chars.peek() {
+        if !c.is_whitespace() && !c.is_control() {
+            buffer.push(c);
+            chars.next();
+        } else {
+            break;
+        }
+    }
+    Ok(Node::Atom(buffer))
+}
+
+fn valid_atom_start_char(chars: &mut iter::Peekable<str::Chars>) -> bool {
+    match chars.peek() {
+        None => false,
+        Some(&'[') | Some(&']') | Some(&'{') | Some(&'}') | Some(&'"') | Some(&'\'') |
+        Some(&'`') => false,
+        Some(c) => !(c.is_whitespace() || c.is_control() || c.is_digit(10)),
+    }
+}
+
 pub fn parse_number(chars: &mut iter::Peekable<str::Chars>) -> Result<Node, String> {
     let mut point = false;
     let mut nums = String::new();
@@ -177,5 +202,71 @@ mod tests {
         let mut chars = "524   ".chars().peekable();
         let res = parse_number(&mut chars);
         assert_eq!(res, Ok(Node::Float(524)));
+    }
+
+    // parse_atom
+
+    #[test]
+    fn parse_atom_lowercase() {
+        let mut chars = "hello".chars().peekable();
+        let res = parse_atom(&mut chars);
+        assert_eq!(res, Ok(Node::Atom("hello".to_string())));
+    }
+
+    #[test]
+    fn parse_atom_uppercase() {
+        let mut chars = "HELLO".chars().peekable();
+        let res = parse_atom(&mut chars);
+        assert_eq!(res, Ok(Node::Atom("HELLO".to_string())));
+    }
+
+    #[test]
+    fn parse_atom_mixed_case() {
+        let mut chars = "HelLO".chars().peekable();
+        let res = parse_atom(&mut chars);
+        assert_eq!(res, Ok(Node::Atom("HelLO".to_string())));
+    }
+
+    #[test]
+    fn parse_atom_with_dash() {
+        let mut chars = "hi-there".chars().peekable();
+        let res = parse_atom(&mut chars);
+        assert_eq!(res, Ok(Node::Atom("hi-there".to_string())));
+    }
+
+    #[test]
+    fn parse_atom_with_underscope() {
+        let mut chars = "what_up".chars().peekable();
+        let res = parse_atom(&mut chars);
+        assert_eq!(res, Ok(Node::Atom("what_up".to_string())));
+    }
+
+    #[test]
+    fn parse_atom_with_other_chars() {
+        let mut chars = "chars1234567890<~>!?\\/:;@#".chars().peekable();
+        let res = parse_atom(&mut chars);
+        assert_eq!(res,
+                   Ok(Node::Atom("chars1234567890<~>!?\\/:;@#".to_string())));
+    }
+
+    #[test]
+    fn parse_atom_blacklisted_starts() {
+        assert!(parse_atom(&mut "0".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "1".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "2".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "3".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "4".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "5".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "6".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "7".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "8".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "9".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "[".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "]".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "{".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "}".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "'".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "`".chars().peekable()).is_err());
+        assert!(parse_atom(&mut "\"".chars().peekable()).is_err());
     }
 }
