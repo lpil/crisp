@@ -1,16 +1,7 @@
 pub mod parser;
 
 #[derive(Debug, PartialEq)]
-pub enum Op {
-    Plus,
-    Minus,
-    Div,
-    Mult,
-}
-
-
-#[derive(Debug, PartialEq)]
-pub enum Sexpr {
-    List(Op, Vec<Sexpr>),
-    Value(f64),
+pub enum Node {
+    List(Vec<Node>),
+    Float(i32),
 }
