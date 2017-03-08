@@ -21,7 +21,11 @@ pub fn parse_atom(chars: &mut iter::Peekable<str::Chars>) -> Result<Node, String
             break;
         }
     }
-    Ok(Node::Atom(buffer))
+    match &*buffer {
+        "true" => Ok(Node::True),
+        "false" => Ok(Node::False),
+        _ => Ok(Node::Atom(buffer)),
+    }
 }
 
 fn valid_atom_start_char(chars: &mut iter::Peekable<str::Chars>) -> bool {
@@ -107,7 +111,7 @@ fn chomp(chars: &mut iter::Peekable<str::Chars>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::Node;
+    use super::super::Node::*;
 
     // Parse
 
@@ -115,8 +119,8 @@ mod tests {
     fn parse_test() {
         let input = "(+ 1 2)".to_string();
         let res = parse(&input);
-        let nums = vec![Node::Atom("+".to_string()), Node::Float(1), Node::Float(2)];
-        let sexpr = Node::List(nums);
+        let nums = vec![Atom("+".to_string()), Float(1), Float(2)];
+        let sexpr = List(nums);
         assert_eq!(res, Ok(sexpr));
     }
 
@@ -133,7 +137,7 @@ mod tests {
     fn parse_list_of_num() {
         let mut chars = "(123)".chars().peekable();
         let res = parse_list(&mut chars);
-        let sexpr = Node::List(vec![Node::Float(123)]);
+        let sexpr = List(vec![Float(123)]);
         assert_eq!(res, Ok(sexpr));
     }
 
@@ -149,8 +153,8 @@ mod tests {
     fn parse_multi_num_list() {
         let mut chars = "(1 2 3)".chars().peekable();
         let res = parse_list(&mut chars);
-        let nums = vec![Node::Float(1), Node::Float(2), Node::Float(3)];
-        let sexpr = Node::List(nums);
+        let nums = vec![Float(1), Float(2), Float(3)];
+        let sexpr = List(nums);
         assert_eq!(res, Ok(sexpr));
     }
 
@@ -158,8 +162,8 @@ mod tests {
     fn parse_nested_list() {
         let mut chars = "(1 (3))".chars().peekable();
         let res = parse_list(&mut chars);
-        let sexpr1 = Node::List(vec![Node::Float(3)]);
-        let sexpr2 = Node::List(vec![Node::Float(1), sexpr1]);
+        let sexpr1 = List(vec![Float(3)]);
+        let sexpr2 = List(vec![Float(1), sexpr1]);
         assert_eq!(res, Ok(sexpr2));
     }
 
@@ -183,7 +187,7 @@ mod tests {
     fn parse_number_digit_then_letter() {
         let mut chars = "11o".chars().peekable();
         let res = parse_number(&mut chars);
-        assert_eq!(res, Ok(Node::Float(11)));
+        assert_eq!(res, Ok(Float(11)));
         assert_eq!(chars.peek(), Some(&'o'));
     }
 
@@ -191,21 +195,21 @@ mod tests {
     fn parse_number_1_digit() {
         let mut chars = "5".chars().peekable();
         let res = parse_number(&mut chars);
-        assert_eq!(res, Ok(Node::Float(5)));
+        assert_eq!(res, Ok(Float(5)));
     }
 
     #[test]
     fn parse_number_2_digits() {
         let mut chars = "52".chars().peekable();
         let res = parse_number(&mut chars);
-        assert_eq!(res, Ok(Node::Float(52)));
+        assert_eq!(res, Ok(Float(52)));
     }
 
     #[test]
     fn parse_number_3_digits() {
         let mut chars = "524   ".chars().peekable();
         let res = parse_number(&mut chars);
-        assert_eq!(res, Ok(Node::Float(524)));
+        assert_eq!(res, Ok(Float(524)));
     }
 
     // parse_atom
@@ -214,43 +218,56 @@ mod tests {
     fn parse_atom_lowercase() {
         let mut chars = "hello".chars().peekable();
         let res = parse_atom(&mut chars);
-        assert_eq!(res, Ok(Node::Atom("hello".to_string())));
+        assert_eq!(res, Ok(Atom("hello".to_string())));
     }
 
     #[test]
     fn parse_atom_uppercase() {
         let mut chars = "HELLO".chars().peekable();
         let res = parse_atom(&mut chars);
-        assert_eq!(res, Ok(Node::Atom("HELLO".to_string())));
+        assert_eq!(res, Ok(Atom("HELLO".to_string())));
     }
 
     #[test]
     fn parse_atom_mixed_case() {
         let mut chars = "HelLO".chars().peekable();
         let res = parse_atom(&mut chars);
-        assert_eq!(res, Ok(Node::Atom("HelLO".to_string())));
+        assert_eq!(res, Ok(Atom("HelLO".to_string())));
     }
 
     #[test]
     fn parse_atom_with_dash() {
         let mut chars = "hi-there".chars().peekable();
         let res = parse_atom(&mut chars);
-        assert_eq!(res, Ok(Node::Atom("hi-there".to_string())));
+        assert_eq!(res, Ok(Atom("hi-there".to_string())));
     }
 
     #[test]
     fn parse_atom_with_underscope() {
         let mut chars = "what_up".chars().peekable();
         let res = parse_atom(&mut chars);
-        assert_eq!(res, Ok(Node::Atom("what_up".to_string())));
+        assert_eq!(res, Ok(Atom("what_up".to_string())));
     }
 
     #[test]
     fn parse_atom_with_other_chars() {
         let mut chars = "chars1234567890<~>!?\\/:;@#".chars().peekable();
         let res = parse_atom(&mut chars);
-        assert_eq!(res,
-                   Ok(Node::Atom("chars1234567890<~>!?\\/:;@#".to_string())));
+        assert_eq!(res, Ok(Atom("chars1234567890<~>!?\\/:;@#".to_string())));
+    }
+
+    #[test]
+    fn parse_atom_true() {
+        let mut chars = "true".chars().peekable();
+        let res = parse_atom(&mut chars);
+        assert_eq!(res, Ok(True));
+    }
+
+    #[test]
+    fn parse_atom_false() {
+        let mut chars = "false".chars().peekable();
+        let res = parse_atom(&mut chars);
+        assert_eq!(res, Ok(False));
     }
 
     #[test]
