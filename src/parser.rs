@@ -4,6 +4,7 @@ use super::Node;
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
+    ReservedChar,
     BadList,
 }
 
@@ -32,6 +33,9 @@ fn parse_nodes(mut chars: &mut Peekable<str::Chars>) -> Result<Vec<Node>, ParseE
 }
 
 fn parse_node(mut chars: &mut Peekable<str::Chars>) -> ParseResult {
+    if starts_with_reserved_char(&mut chars) {
+        return ParseResult::Err(ParseError::ReservedChar);
+    }
     if let Some(atom) = parse_atom(&mut chars) {
         return ParseResult::Ok(atom);
     }
@@ -40,7 +44,6 @@ fn parse_node(mut chars: &mut Peekable<str::Chars>) -> ParseResult {
     }
     parse_list(&mut chars)
 }
-
 
 fn parse_atom(chars: &mut Peekable<str::Chars>) -> Option<Node> {
     let mut buffer = String::new();
@@ -62,10 +65,18 @@ fn parse_atom(chars: &mut Peekable<str::Chars>) -> Option<Node> {
     }
 }
 
-fn valid_atom_start_char(chars: &mut Peekable<str::Chars>) -> bool {
+fn starts_with_reserved_char(chars: &mut Peekable<str::Chars>) -> bool {
     match chars.peek() {
-        None | Some(&'(') | Some(&')') | Some(&'[') | Some(&']') | Some(&'{') | Some(&'}') |
-        Some(&'"') | Some(&'\'') | Some(&'`') => false,
+        Some(&'#') | Some(&'[') | Some(&']') | Some(&'{') | Some(&'}') | Some(&'"') |
+        Some(&'\'') | Some(&'`') => true,
+        _ => false,
+    }
+}
+
+fn valid_atom_start_char(chars: &mut Peekable<str::Chars>) -> bool {
+    !starts_with_reserved_char(chars) &&
+    match chars.peek() {
+        Some(&'(') | Some(&')') | None => false,
         Some(c) => !(c.is_whitespace() || c.is_control() || c.is_digit(10)),
     }
 }
@@ -229,15 +240,15 @@ mod tests {
         assert_eq!(parse(&"false".to_string()), Ok(vec![False]));
     }
 
-    // TODO: BadNode errors for reserved chars
-    // #[test]
-    // fn parse_atom_blacklisted_starts() {
-    //     assert_eq!(parse(&mut "[".to_string()), Ok(vec![]));
-    //     assert_eq!(parse(&mut "]".to_string()), Ok(vec![]));
-    //     assert_eq!(parse(&mut "{".to_string()), Ok(vec![]));
-    //     assert_eq!(parse(&mut "}".to_string()), Ok(vec![]));
-    //     assert_eq!(parse(&mut "'".to_string()), Ok(vec![]));
-    //     assert_eq!(parse(&mut "`".to_string()), Ok(vec![]));
-    //     assert_eq!(parse(&mut "\"".to_string()), Ok(vec![]));
-    // }
+    #[test]
+    fn parse_atom_blacklisted_starts() {
+        assert_eq!(parse(&mut "#".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "[".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "]".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "{".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "}".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "'".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "`".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "\"".to_string()), Err(ReservedChar));
+    }
 }
