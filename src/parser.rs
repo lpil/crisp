@@ -1,4 +1,4 @@
-use std::iter;
+use std::iter::Peekable;
 use std::str;
 use super::Node;
 
@@ -13,12 +13,12 @@ enum ParseResult {
     Err(ParseError),
 }
 
-pub fn parse(input: &String) -> Result<Vec<Node>, ParseError> {
+pub fn parse(input: &str) -> Result<Vec<Node>, ParseError> {
     let mut chars = input.chars().peekable();
     parse_nodes(&mut chars)
 }
 
-fn parse_nodes(mut chars: &mut iter::Peekable<str::Chars>) -> Result<Vec<Node>, ParseError> {
+fn parse_nodes(mut chars: &mut Peekable<str::Chars>) -> Result<Vec<Node>, ParseError> {
     let mut nodes = vec![];
     loop {
         chomp(&mut chars);
@@ -31,7 +31,7 @@ fn parse_nodes(mut chars: &mut iter::Peekable<str::Chars>) -> Result<Vec<Node>, 
     Ok(nodes)
 }
 
-fn parse_node(mut chars: &mut iter::Peekable<str::Chars>) -> ParseResult {
+fn parse_node(mut chars: &mut Peekable<str::Chars>) -> ParseResult {
     if let Some(atom) = parse_atom(&mut chars) {
         return ParseResult::Ok(atom);
     }
@@ -42,7 +42,7 @@ fn parse_node(mut chars: &mut iter::Peekable<str::Chars>) -> ParseResult {
 }
 
 
-fn parse_atom(chars: &mut iter::Peekable<str::Chars>) -> Option<Node> {
+fn parse_atom(chars: &mut Peekable<str::Chars>) -> Option<Node> {
     let mut buffer = String::new();
     if !valid_atom_start_char(chars) {
         return None;
@@ -62,16 +62,15 @@ fn parse_atom(chars: &mut iter::Peekable<str::Chars>) -> Option<Node> {
     }
 }
 
-fn valid_atom_start_char(chars: &mut iter::Peekable<str::Chars>) -> bool {
+fn valid_atom_start_char(chars: &mut Peekable<str::Chars>) -> bool {
     match chars.peek() {
-        None => false,
-        Some(&'(') | Some(&')') | Some(&'[') | Some(&']') | Some(&'{') | Some(&'}') |
+        None | Some(&'(') | Some(&')') | Some(&'[') | Some(&']') | Some(&'{') | Some(&'}') |
         Some(&'"') | Some(&'\'') | Some(&'`') => false,
         Some(c) => !(c.is_whitespace() || c.is_control() || c.is_digit(10)),
     }
 }
 
-fn parse_number(chars: &mut iter::Peekable<str::Chars>) -> Option<Node> {
+fn parse_number(chars: &mut Peekable<str::Chars>) -> Option<Node> {
     let mut point = false;
     let mut nums = String::new();
     while let Some(&c) = chars.peek() {
@@ -92,7 +91,7 @@ fn parse_number(chars: &mut iter::Peekable<str::Chars>) -> Option<Node> {
     }
 }
 
-fn parse_list(mut chars: &mut iter::Peekable<str::Chars>) -> ParseResult {
+fn parse_list(mut chars: &mut Peekable<str::Chars>) -> ParseResult {
     if chars.peek() != Some(&'(') {
         return ParseResult::None;
     }
@@ -112,7 +111,7 @@ fn parse_list(mut chars: &mut iter::Peekable<str::Chars>) -> ParseResult {
 
 /// Drop preceeding spaces
 ///
-fn chomp(chars: &mut iter::Peekable<str::Chars>) {
+fn chomp(chars: &mut Peekable<str::Chars>) {
     while let Some(&c) = chars.peek() {
         if c == ' ' {
             chars.next();
