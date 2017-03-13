@@ -14,6 +14,8 @@ enum ParseResult {
     Err(ParseError),
 }
 
+/// Parse source code into an abstract syntax tree.
+///
 pub fn parse(input: &str) -> Result<Vec<Node>, ParseError> {
     let mut chars = input.chars().peekable();
     parse_nodes(&mut chars)
@@ -129,7 +131,6 @@ fn chomp(chars: &mut Peekable<str::Chars>) {
         } else {
             break;
         }
-
     }
 }
 

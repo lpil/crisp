@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::fmt;
 
 //
 // Adapted from Alexis Beingessner's "Learning Rust With
@@ -9,8 +10,15 @@ use std::rc::Rc;
 
 /// A persistent singly linked list.
 ///
+#[derive(PartialEq)]
 pub struct List<T> {
     head: Link<T>,
+}
+
+#[derive(PartialEq)]
+struct Node<T> {
+    elem: T,
+    next: Link<T>,
 }
 
 // Currently the link uses Rc, a reference counter.
@@ -18,11 +26,6 @@ pub struct List<T> {
 // Real GC should have higher throughput than RC.
 //
 type Link<T> = Option<Rc<Node<T>>>;
-
-struct Node<T> {
-    elem: T,
-    next: Link<T>,
-}
 
 // Note: The deallocation of the linked list may not be
 // tail recursive, if so a large list could blow the stack
@@ -66,6 +69,15 @@ impl<T> List<T> {
     }
 }
 
+impl<T: fmt::Debug> fmt::Debug for List<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.head() {
+            None => write!(f, "L()"),
+            Some(e) => write!(f, "L({:?} {:?})", e, self.tail()),
+        }
+    }
+}
+
 // NOTE: This implement's the Iter trait. May be useful later.
 //
 //  // Goes in the impl block
@@ -86,7 +98,6 @@ impl<T> List<T> {
 //         })
 //     }
 // }
-
 
 #[cfg(test)]
 mod test {
@@ -133,5 +144,18 @@ mod test {
         let list = List::new();
         assert_eq!(list.is_empty(), true);
         assert_eq!(list.cons(1).is_empty(), false);
+    }
+
+    #[test]
+    fn debug() {
+        let list = List::new().cons(1).cons(2).cons(3);
+        assert_eq!(format!("{:?}", list), "L(3 L(2 L(1 L())))");
+    }
+
+    #[test]
+    fn equality() {
+        let list1 = List::new().cons(1).cons(2).cons(3);
+        let list2 = List::new().cons(1).cons(2).cons(3);
+        assert_eq!(list1, list2);
     }
 }
