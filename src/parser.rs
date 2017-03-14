@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 use std::str;
-use super::Node;
+use super::ast::Node;
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
@@ -61,9 +61,9 @@ fn parse_atom(chars: &mut Peekable<str::Chars>) -> Option<Node> {
         }
     }
     match &*buffer {
-        "true" => Some(Node::True),
-        "false" => Some(Node::False),
-        _ => Some(Node::Atom(buffer)),
+        "true" => Some(Node::true_()),
+        "false" => Some(Node::false_()),
+        _ => Some(Node::atom(buffer)),
     }
 }
 
@@ -99,7 +99,7 @@ fn parse_number(chars: &mut Peekable<str::Chars>) -> Option<Node> {
         }
     }
     match nums.parse() {
-        Ok(n) => Some(Node::Float(n)),
+        Ok(n) => Some(Node::float(n)),
         Err(_) => None,
     }
 }
@@ -116,7 +116,7 @@ fn parse_list(mut chars: &mut Peekable<str::Chars>) -> ParseResult {
     };
     if chars.peek() == Some(&')') {
         chars.next();
-        ParseResult::Ok(Node::List(elements))
+        ParseResult::Ok(Node::list_from_vec(elements))
     } else {
         ParseResult::Err(ParseError::BadList)
     }
@@ -139,12 +139,13 @@ fn chomp(chars: &mut Peekable<str::Chars>) {
 mod tests {
     use super::*;
     use super::ParseError::*;
-    use super::super::Node::*;
+    use super::super::ast::Node;
 
     #[test]
     fn parse_test() {
         let input = "(+ 1 2)".to_string();
-        let list = List(vec![Atom("+".to_string()), Float(1), Float(2)]);
+        let list =
+            Node::list_from_vec(vec![Node::atom("+".to_string()), Node::float(1), Node::float(2)]);
         assert_eq!(parse(&input), Ok(vec![list]));
     }
 
@@ -153,7 +154,9 @@ mod tests {
     fn parse_top_level_values() {
         let input = "() 1 /".to_string();
         assert_eq!(parse(&input),
-                   Ok(vec![List(vec![]), Float(1), Atom("/".to_string())]));
+                   Ok(vec![Node::list_from_vec(vec![]),
+                           Node::float(1),
+                           Node::atom("/".to_string())]));
     }
 
     #[test]
@@ -164,7 +167,7 @@ mod tests {
     #[test]
     fn parse_list_of_num() {
         assert_eq!(parse(&"(123)".to_string()),
-                   Ok(vec![List(vec![Float(123)])]));
+                   Ok(vec![Node::list_from_vec(vec![Node::float(123)])]));
     }
 
     #[test]
@@ -176,69 +179,72 @@ mod tests {
     #[test]
     fn parse_multi_num_list() {
         assert_eq!(parse(&"(1 2 3)".to_string()),
-                   Ok(vec![List(vec![Float(1), Float(2), Float(3)])]));
+                   Ok(vec![Node::list_from_vec(vec![Node::float(1),
+                                                    Node::float(2),
+                                                    Node::float(3)])]));
     }
 
     #[test]
     fn parse_nested_list() {
         assert_eq!(parse(&"(1 (3))".to_string()),
-                   Ok(vec![List(vec![Float(1), List(vec![Float(3)])])]));
+                   Ok(vec![Node::list_from_vec(vec![Node::float(1),
+                                                    Node::list_from_vec(vec![Node::float(3)])])]));
     }
 
     #[test]
     fn parse_number_1_digit() {
-        assert_eq!(parse(&"5".to_string()), Ok(vec![Float(5)]));
+        assert_eq!(parse(&"5".to_string()), Ok(vec![Node::float(5)]));
     }
 
     #[test]
     fn parse_number_2_digits() {
-        assert_eq!(parse(&"52".to_string()), Ok(vec![Float(52)]));
+        assert_eq!(parse(&"52".to_string()), Ok(vec![Node::float(52)]));
     }
 
     #[test]
     fn parse_atom_lowercase() {
         assert_eq!(parse(&"hello".to_string()),
-                   Ok(vec![Atom("hello".to_string())]));
+                   Ok(vec![Node::atom("hello".to_string())]));
     }
 
     #[test]
     fn parse_atom_uppercase() {
         assert_eq!(parse(&"HELLO".to_string()),
-                   Ok(vec![Atom("HELLO".to_string())]));
+                   Ok(vec![Node::atom("HELLO".to_string())]));
     }
 
     #[test]
     fn parse_atom_mixed_case() {
         assert_eq!(parse(&"HelLO".to_string()),
-                   Ok(vec![Atom("HelLO".to_string())]));
+                   Ok(vec![Node::atom("HelLO".to_string())]));
     }
 
     #[test]
     fn parse_atom_with_dash() {
         assert_eq!(parse(&"hi-there".to_string()),
-                   Ok(vec![Atom("hi-there".to_string())]));
+                   Ok(vec![Node::atom("hi-there".to_string())]));
     }
 
     #[test]
     fn parse_atom_with_underscope() {
         assert_eq!(parse(&"hi_there".to_string()),
-                   Ok(vec![Atom("hi_there".to_string())]));
+                   Ok(vec![Node::atom("hi_there".to_string())]));
     }
 
     #[test]
     fn parse_atom_with_other_chars() {
         assert_eq!(parse(&"chars1234567890<~>!?\\/:;@#".to_string()),
-                   Ok(vec![Atom("chars1234567890<~>!?\\/:;@#".to_string())]));
+                   Ok(vec![Node::atom("chars1234567890<~>!?\\/:;@#".to_string())]));
     }
 
     #[test]
     fn parse_atom_true() {
-        assert_eq!(parse(&"true".to_string()), Ok(vec![True]));
+        assert_eq!(parse(&"true".to_string()), Ok(vec![Node::true_()]));
     }
 
     #[test]
     fn parse_atom_false() {
-        assert_eq!(parse(&"false".to_string()), Ok(vec![False]));
+        assert_eq!(parse(&"false".to_string()), Ok(vec![Node::false_()]));
     }
 
     #[test]

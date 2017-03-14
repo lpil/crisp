@@ -38,6 +38,12 @@ impl<T> List<T> {
         List { head: None }
     }
 
+    /// Construct a list from a vector
+    ///
+    pub fn from_vec(vec: Vec<T>) -> Self {
+        vec.into_iter().rev().fold(Self::new(), |list, elem| list.cons(elem))
+    }
+
     /// Prepend an element to the begining of the list.
     ///
     pub fn cons(&self, elem: T) -> Self {
@@ -157,5 +163,27 @@ mod test {
         let list1 = List::new().cons(1).cons(2).cons(3);
         let list2 = List::new().cons(1).cons(2).cons(3);
         assert_eq!(list1, list2);
+    }
+
+    #[test]
+    fn from_vec_empty() {
+        let empty_list: List<u8> = List::new();
+        assert_eq!(List::from_vec(vec![]), empty_list);
+    }
+
+    #[test]
+    fn from_vec_1() {
+        assert_eq!(List::from_vec(vec![1]), List::new().cons(1));
+    }
+
+    #[test]
+    fn from_vec_2() {
+        assert_eq!(List::from_vec(vec![1, 2]), List::new().cons(2).cons(1));
+    }
+
+    #[test]
+    fn from_vec_3() {
+        assert_eq!(List::from_vec(vec![1, 2, 3]),
+                   List::new().cons(3).cons(2).cons(1));
     }
 }
