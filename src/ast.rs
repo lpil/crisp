@@ -5,6 +5,7 @@ pub enum Node {
     List(list::List<Node>),
     Float(i32),
     Atom(String),
+    String(String),
     True,
     False,
 }
@@ -32,6 +33,12 @@ impl Node {
     ///
     pub fn float(f: i32) -> Self {
         Node::Float(f)
+    }
+
+    /// Constuct a new string node
+    ///
+    pub fn string(s: String) -> Self {
+        Node::String(s)
     }
 
     /// Constuct a new List node

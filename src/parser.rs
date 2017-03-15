@@ -6,6 +6,7 @@ use super::ast::Node;
 pub enum ParseError {
     ReservedChar,
     BadList,
+    BadString,
 }
 
 enum ParseResult {
@@ -38,13 +39,21 @@ fn parse_node(mut chars: &mut Peekable<str::Chars>) -> ParseResult {
     if starts_with_reserved_char(&mut chars) {
         return ParseResult::Err(ParseError::ReservedChar);
     }
+    match parse_string(&mut chars) {
+        ParseResult::None => (),
+        result => return result,
+    }
+    match parse_list(&mut chars) {
+        ParseResult::None => (),
+        result => return result,
+    }
     if let Some(atom) = parse_atom(&mut chars) {
         return ParseResult::Ok(atom);
     }
     if let Some(num) = parse_number(&mut chars) {
         return ParseResult::Ok(num);
     }
-    parse_list(&mut chars)
+    ParseResult::None
 }
 
 fn parse_atom(chars: &mut Peekable<str::Chars>) -> Option<Node> {
@@ -53,7 +62,7 @@ fn parse_atom(chars: &mut Peekable<str::Chars>) -> Option<Node> {
         return None;
     }
     while let Some(&c) = chars.peek() {
-        if !c.is_whitespace() && !c.is_control() && c != '(' && c != ')' {
+        if !c.is_whitespace() && !c.is_control() {
             buffer.push(c);
             chars.next();
         } else {
@@ -67,10 +76,34 @@ fn parse_atom(chars: &mut Peekable<str::Chars>) -> Option<Node> {
     }
 }
 
+fn parse_string(chars: &mut Peekable<str::Chars>) -> ParseResult {
+    if chars.peek() != Some(&'"') {
+        return ParseResult::None;
+    }
+    chars.next();
+    let mut buffer = String::new();
+    loop {
+        match chars.next() {
+            Some('\\') => {
+                match chars.next() {
+                    None => return ParseResult::Err(ParseError::BadString),
+                    Some('n') => buffer.push('\n'),
+                    Some('t') => buffer.push('\t'),
+                    Some(c) => buffer.push(c),
+                }
+            }
+            Some('"') => break,
+            Some(c) => buffer.push(c),
+            None => return ParseResult::Err(ParseError::BadString),
+        };
+    }
+    ParseResult::Ok(Node::string(buffer))
+}
+
 fn starts_with_reserved_char(chars: &mut Peekable<str::Chars>) -> bool {
     match chars.peek() {
-        Some(&'#') | Some(&'[') | Some(&']') | Some(&'{') | Some(&'}') | Some(&'"') |
-        Some(&'\'') | Some(&'`') => true,
+        Some(&'#') | Some(&'[') | Some(&']') | Some(&'{') | Some(&'}') | Some(&'\'') |
+        Some(&'`') => true,
         _ => false,
     }
 }
@@ -202,6 +235,27 @@ mod tests {
     }
 
     #[test]
+    fn parse_atom_blacklisted_starts() {
+        assert_eq!(parse(&mut "#".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "[".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "]".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "{".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "}".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "'".to_string()), Err(ReservedChar));
+        assert_eq!(parse(&mut "`".to_string()), Err(ReservedChar));
+    }
+
+    #[test]
+    fn parse_newline() {
+        assert_eq!(parse(&mut "\n".to_string()), Ok(vec![]));
+    }
+
+    #[test]
+    fn parse_tab() {
+        assert_eq!(parse(&mut "\t".to_string()), Ok(vec![]));
+    }
+
+    #[test]
     fn parse_atom_lowercase() {
         assert_eq!(parse(&"hello".to_string()),
                    Ok(vec![Node::atom("hello".to_string())]));
@@ -248,14 +302,37 @@ mod tests {
     }
 
     #[test]
-    fn parse_atom_blacklisted_starts() {
-        assert_eq!(parse(&mut "#".to_string()), Err(ReservedChar));
-        assert_eq!(parse(&mut "[".to_string()), Err(ReservedChar));
-        assert_eq!(parse(&mut "]".to_string()), Err(ReservedChar));
-        assert_eq!(parse(&mut "{".to_string()), Err(ReservedChar));
-        assert_eq!(parse(&mut "}".to_string()), Err(ReservedChar));
-        assert_eq!(parse(&mut "'".to_string()), Err(ReservedChar));
-        assert_eq!(parse(&mut "`".to_string()), Err(ReservedChar));
-        assert_eq!(parse(&mut "\"".to_string()), Err(ReservedChar));
+    fn parse_empty_string() {
+        assert_eq!(parse(&"\"\"".to_string()),
+                   Ok(vec![Node::string("".to_string())]));
+    }
+
+    #[test]
+    fn parse_unclosed_string() {
+        assert_eq!(parse(&"\"".to_string()), Err(BadString))
+    }
+
+    #[test]
+    fn parse_string_with_content() {
+        assert_eq!(parse(&"\"Hello, world!\"".to_string()),
+                   Ok(vec![Node::string("Hello, world!".to_string())]))
+    }
+
+    #[test]
+    fn parse_string_with_escaped_quote() {
+        assert_eq!(parse(&"\"-> \\\" <-\"".to_string()),
+                   Ok(vec![Node::string("-> \" <-".to_string())]))
+    }
+
+    #[test]
+    fn parse_string_with_slash_n_newline() {
+        assert_eq!(parse(&"\"\\n\"".to_string()),
+                   Ok(vec![Node::string("\n".to_string())]))
+    }
+
+    #[test]
+    fn parse_string_with_slash_t_tab() {
+        assert_eq!(parse(&"\"\\t\"".to_string()),
+                   Ok(vec![Node::string("\t".to_string())]))
     }
 }
