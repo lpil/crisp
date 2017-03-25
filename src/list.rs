@@ -38,11 +38,20 @@ impl<T> List<T> {
         List { head: None }
     }
 
+
     /// Construct a list from a vector
     ///
     pub fn from_vec(vec: Vec<T>) -> Self {
         vec.into_iter().rev().fold(Self::new(), |list, elem| list.cons(elem))
     }
+
+
+    /// Construct an Iter for the list.
+    ///
+    pub fn iter(&self) -> Iter<T> {
+        Iter { next: self.head.as_ref().map(|node| &**node) }
+    }
+
 
     /// Prepend an element to the begining of the list.
     ///
@@ -55,11 +64,13 @@ impl<T> List<T> {
         }
     }
 
+
     /// Fetch the first element of the list, if there is one.
     ///
     pub fn head(&self) -> Option<&T> {
         self.head.as_ref().map(|node| &node.elem)
     }
+
 
     /// Fetch the tail of the list.
     /// i.e. the list without the first element.
@@ -67,6 +78,7 @@ impl<T> List<T> {
     pub fn tail(&self) -> Self {
         List { head: self.head.as_ref().and_then(|node| node.next.clone()) }
     }
+
 
     /// Indicate whether the list has any elements or not.
     ///
@@ -84,26 +96,19 @@ impl<T: fmt::Debug> fmt::Debug for List<T> {
     }
 }
 
-// NOTE: This implement's the Iter trait. May be useful later.
-//
-//  // Goes in the impl block
-//  pub fn iter(&self) -> Iter<T> {
-//    Iter { next: self.head.as_ref().map(|node| &**node) }
-//  }
-//
-// pub struct Iter<'a, T: 'a> {
-//     next: Option<&'a Node<T>>,
-// }
-//
-// impl<'a, T> Iterator for Iter<'a, T> {
-//     type Item = &'a T;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.next.map(|node| {
-//             self.next = node.next.as_ref().map(|node| &**node);
-//             &node.elem
-//         })
-//     }
-// }
+pub struct Iter<'a, T: 'a> {
+    next: Option<&'a Node<T>>,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.map(|node| {
+            self.next = node.next.as_ref().map(|node| &**node);
+            &node.elem
+        })
+    }
+}
 
 #[cfg(test)]
 mod test {
